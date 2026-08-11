@@ -198,6 +198,14 @@ typedef struct {
 } block_q4_0;
 static_assert(sizeof(block_q4_0) == sizeof(ggml_half) + QK4_0 / 2, "wrong q4_0 block size/padding");
 
+#define QK4_HQQ 32
+typedef struct {
+    ggml_half scale;           // inverse scale: 15 / (max - min)
+    ggml_half zero;            // zero point: -min * scale
+    uint8_t qs[QK4_HQQ / 2];   // 4-bit quants, 2 per byte
+} block_q4_hqq;
+static_assert(sizeof(block_q4_hqq) == 2 * sizeof(ggml_half) + QK4_HQQ / 2, "wrong q4_hqq block size/padding");
+
 #define QK4_1 32
 typedef struct {
     GGML_EXTENSION union {

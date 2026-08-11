@@ -1,10 +1,8 @@
 # Task 1: Quantize and Run a Model
 
-Llama 3.2 3B (base, not Instruct) -> GGUF F16 -> Q4_0, inference on CPU and measuring performance metrics.
+Llama 3.2 3B -> GGUF F16 -> Q4_0, inference on CPU and measuring performance metrics.
 
 ## Setup
-
-Environment: WSL2 (Ubuntu), x86_64, 8 logical cores, 15 GiB RAM, CPU-only, AVX2 / AVX512 / AVX512_VNNI. All commands are run from the repository root, except steps 4-5, which are run from `llama.cpp/`.
 
 ```bash
 # 1. Build llama.cpp
@@ -22,18 +20,18 @@ pip install -r llama.cpp/requirements/requirements-convert_hf_to_gguf.txt
 huggingface-cli download meta-llama/Llama-3.2-3B --local-dir Llama-3.2-3B
 
 # 4. Convert HF -> GGUF F16
+cd llama.cpp
 python llama.cpp/convert_hf_to_gguf.py Llama-3.2-3B \
   --outfile Llama-3.2-3B/llama-3.2-3b-f16.gguf \
   --outtype f16
 
 # 5. Quantize F16 -> Q4_0
+cd llama.cpp
 ./llama.cpp/build/bin/llama-quantize \
   Llama-3.2-3B/llama-3.2-3b-f16.gguf \
   Llama-3.2-3B/llama-3.2-3b-q4_0.gguf \
   Q4_0
 ```
-
-Step 3 requires downloading HF-format weights (`config.json` + `*.safetensors`). The `original/` folder with `consolidated.00.pth` is not suitable for this converter.
 
 ## Run inference
 

@@ -856,6 +856,59 @@ void ggml_vec_dot_q4_0_q8_0(int n, float * GGML_RESTRICT s, size_t bs, const voi
     *s = sumf;
 }
 
+void ggml_vec_dot_q4_hqq_q8_0(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
+    const int qk = QK8_0;
+    const int nb = n / qk;
+
+    assert(n % qk == 0);
+    assert(qk == QK4_HQQ);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+    const block_q4_hqq * GGML_RESTRICT x = vx;
+    const block_q8_0   * GGML_RESTRICT y = vy;
+
+#if defined(__AVX2__)
+    // w = (q - zero) / scale
+    // sum w*d_y*y = (d_y/scale) * (sum q*y - zero * sum y)
+    __m256 acc = _mm256_setzero_ps();
+    float sum_corr = 0.0f;
+    const __m256i ones16 = _mm256_set1_epi16(1);
+
+    for (int ib = 0; ib < nb; ++ib) {
+        const float scale = GGML_CPU_FP16_TO_FP32(x[ib].scale);
+        const float zero  = GGML_CPU_FP16_TO_FP32(x[ib].zero);
+        const float d     = GGML_CPU_FP16_TO_FP32(y[ib].d);
+        const float iscale = scale != 0.0f ? 1.0f / scale : 0.0f;
+        const float factor = d * iscale;
+
+        const __m256i qx = bytes_from_nibbles_32(x[ib].qs);
+        const __m256i qy = _mm256_loadu_si256((const __m256i *)y[ib].qs);
+
+        const __m256 sumi_v = mul_sum_us8_pairs_float(qx, qy);
+        acc = _mm256_fmadd_ps(_mm256_set1_ps(factor), sumi_v, acc);
+
+        // sum of signed int8 activations
+        const __m256i y0 = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(qy));
+        const __m256i y1 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(qy, 1));
+        const __m256i s32 = _mm256_madd_epi16(_mm256_add_epi16(y0, y1), ones16);
+        const int sumy = hsum_i32_8(s32);
+
+        sum_corr += factor * zero * (float) sumy;
+    }
+
+    *s = hsum_float_8(acc) - sum_corr;
+#else
+    UNUSED(nb);
+    UNUSED(x);
+    UNUSED(y);
+    ggml_vec_dot_q4_hqq_q8_0_generic(n, s, bs, vx, bx, vy, by, nrc);
+#endif
+}
+
 void ggml_vec_dot_q4_1_q8_1(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
     const int qk = QK8_1;
     const int nb = n / qk;

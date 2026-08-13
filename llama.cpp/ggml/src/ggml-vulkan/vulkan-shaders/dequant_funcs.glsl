@@ -83,6 +83,18 @@ vec4 dequantize4(uint ib, uint iqs, uint a_offset) {
 }
 #endif
 
+#if defined(DATA_A_Q4_HQQ)
+// Raw nibbles; get_dm remaps to Q4_1-style (d, m) = (1/scale, -zero/scale)
+vec2 dequantize(uint ib, uint iqs, uint a_offset) {
+    const uint vui = uint(data_a[a_offset + ib].qs[iqs]);
+    return vec2(vui & 0xF, vui >> 4);
+}
+vec4 dequantize4(uint ib, uint iqs, uint a_offset) {
+    const uint vui = uint(data_a_packed16[a_offset + ib].qs[iqs/2]);
+    return vec4(vui & 0xF, (vui >> 4) & 0xF, (vui >> 8) & 0xF, vui >> 12);
+}
+#endif
+
 #if defined(DATA_A_Q5_0)
 vec2 dequantize(uint ib, uint iqs, uint a_offset) {
     const uint uint_qh = uint(data_a[a_offset + ib].qh[1]) << 16 | data_a[a_offset + ib].qh[0];
@@ -587,6 +599,14 @@ vec2 get_dm(uint ib, uint a_offset) {
 vec2 get_dm(uint ib, uint a_offset) {
     const vec2 dm = vec2(data_a_packed32[a_offset + ib].dm);
     return dm;
+}
+#endif
+
+#if defined(DATA_A_Q4_HQQ)
+vec2 get_dm(uint ib, uint a_offset) {
+    const vec2 sz = vec2(data_a_packed32[a_offset + ib].sz);
+    // w = (q - zero) / scale  ==  q * (1/scale) + (-zero/scale)
+    return vec2(1.0 / sz.x, -sz.y / sz.x);
 }
 #endif
 

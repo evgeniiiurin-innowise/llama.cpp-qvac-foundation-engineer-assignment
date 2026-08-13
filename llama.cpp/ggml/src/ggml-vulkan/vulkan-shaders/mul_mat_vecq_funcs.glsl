@@ -20,6 +20,13 @@ FLOAT_TYPEV2 get_dm(uint ib) {
 }
 #endif
 
+#if defined(DATA_A_Q4_HQQ)
+FLOAT_TYPEV2 get_dm(uint ib) {
+    const vec2 sz = vec2(data_a_packed32[ib].sz);
+    return FLOAT_TYPEV2(1.0 / sz.x, -sz.y / sz.x);
+}
+#endif
+
 #if defined(DATA_A_MXFP4)
 FLOAT_TYPE get_dm(uint ib) {
     return FLOAT_TYPE(e8m0_to_fp32(data_a[ib].e));
@@ -72,6 +79,19 @@ FLOAT_TYPE mul_q8_1(const int32_t q_sum, const float da, const vec2 dsb, const i
 
 #if defined(DATA_A_Q4_1)
 // 4-byte loads for Q4_1 blocks (20 bytes)
+i32vec2 repack(uint ib, uint iqs) {
+    const uint32_t vui = data_a_packed32[ib].qs[iqs];
+    return i32vec2( vui       & 0x0F0F0F0F,
+                   (vui >> 4) & 0x0F0F0F0F);
+}
+
+FLOAT_TYPE mul_q8_1(const int32_t q_sum, const vec2 dma, const vec2 dsb, const int32_t sum_divisor) {
+    return FLOAT_TYPE(float(q_sum) * dma.x * dsb.x + dma.y * dsb.y / sum_divisor);
+}
+#endif
+
+#if defined(DATA_A_Q4_HQQ)
+// Same layout as Q4_1 (20 bytes); get_dm remaps scale/zero -> (d, m)
 i32vec2 repack(uint ib, uint iqs) {
     const uint32_t vui = data_a_packed32[ib].qs[iqs];
     return i32vec2( vui       & 0x0F0F0F0F,

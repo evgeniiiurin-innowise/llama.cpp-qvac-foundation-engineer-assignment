@@ -84,6 +84,23 @@ void load_a_to_shmem(const uint pos_a, const uint row, const uint col, const uin
             buf_a[buf_idx + 1 ] = FLOAT_TYPEV2(v0.zw);
             buf_a[buf_idx + 8 ] = FLOAT_TYPEV2(v1.xy);
             buf_a[buf_idx + 9 ] = FLOAT_TYPEV2(v1.zw);
+#elif defined(DATA_A_Q4_HQQ)
+            const uint idx = pos_a + col * p.stride_a / LOAD_VEC_A + row;
+            const uint buf_idx = col * SHMEM_STRIDE + row * LOAD_VEC_A / 4;
+
+            const uint ib = idx / 4;
+            const uint iqs = idx & 0x03;
+
+            const vec2 sz = vec2(data_a_packed32[ib].sz);
+            const vec2 dm = vec2(1.0 / sz.x, -sz.y / sz.x);
+            const uint vui = data_a_packed32[ib].qs[iqs];
+            const vec4 v0 = vec4(unpack8(vui & 0x0F0F0F0F)) * dm.x + dm.y;
+            const vec4 v1 = vec4(unpack8((vui >> 4) & 0x0F0F0F0F)) * dm.x + dm.y;
+
+            buf_a[buf_idx     ] = FLOAT_TYPEV2(v0.xy);
+            buf_a[buf_idx + 1 ] = FLOAT_TYPEV2(v0.zw);
+            buf_a[buf_idx + 8 ] = FLOAT_TYPEV2(v1.xy);
+            buf_a[buf_idx + 9 ] = FLOAT_TYPEV2(v1.zw);
 #elif defined(DATA_A_Q5_0)
             const uint idx = pos_a + col * p.stride_a / LOAD_VEC_A + row;
             const uint buf_idx = col * SHMEM_STRIDE + row * LOAD_VEC_A / 4;

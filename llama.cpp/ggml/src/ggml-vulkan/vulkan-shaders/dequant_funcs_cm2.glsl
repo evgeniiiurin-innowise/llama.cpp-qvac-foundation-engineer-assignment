@@ -132,6 +132,44 @@ f16vec4 dequantFuncQ4_1_v(const in decodeBufQ4_1 bl, const in uint blockCoords[2
     return f16vec4(vec4(q) * vec4(float(d)) + vec4(float(m)));
 }
 
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer decodeBufQ4_HQQ {
+   block_q4_hqq block;
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer decodeBufQ4_HQQ_packed32 {
+   block_q4_hqq_packed32 block;
+};
+
+float16_t dequantFuncQ4_HQQ(const in decodeBufQ4_HQQ bl, const in uint blockCoords[2], const in uint coordInBlock[2])
+{
+    const float scale = float(bl.block.scale);
+    const float zero  = float(bl.block.zero);
+    const float d = 1.0 / scale;
+    const float m = -zero / scale;
+    const uint idx = coordInBlock[1];
+    const uint iqs = idx & 0xF;
+    const uint shift = (idx & 0x10) >> 2;
+    uint32_t qs = bl.block.qs[iqs];
+    qs >>= shift;
+    qs &= 0xF;
+    return float16_t(float(qs) * d + m);
+}
+
+f16vec4 dequantFuncQ4_HQQ_v(const in decodeBufQ4_HQQ bl, const in uint blockCoords[2], const in uint coordInBlock[2])
+{
+    decodeBufQ4_HQQ_packed32 bl32 = decodeBufQ4_HQQ_packed32(bl);
+    const float scale = float(bl.block.scale);
+    const float zero  = float(bl.block.zero);
+    const float d = 1.0 / scale;
+    const float m = -zero / scale;
+    const uint idx = coordInBlock[1];
+    const uint shift = (idx & 0x10) >> 2;
+    const uint qs_w  = (idx & 0xC) >> 2;
+    const uint qsw   = uint32_t(bl32.block.qs[qs_w]);
+    const u8vec4 q   = unpack8((qsw >> shift) & 0x0F0F0F0Fu);
+    return f16vec4(vec4(q) * vec4(d) + vec4(m));
+}
+
 layout(buffer_reference, std430, buffer_reference_align = 2) buffer decodeBufQ5_0 {
    block_q5_0 block;
 };
@@ -1359,6 +1397,9 @@ f16vec4 dequantFuncNVFP4_v(const in decodeBufNVFP4 bl, const in uint blockCoords
 #elif defined(DATA_A_Q4_1)
 #define dequantFuncA dequantFuncQ4_1
 #define dequantFuncA_v dequantFuncQ4_1_v
+#elif defined(DATA_A_Q4_HQQ)
+#define dequantFuncA dequantFuncQ4_HQQ
+#define dequantFuncA_v dequantFuncQ4_HQQ_v
 #elif defined(DATA_A_Q5_0)
 #define dequantFuncA dequantFuncQ5_0
 #define dequantFuncA_v dequantFuncQ5_0_v

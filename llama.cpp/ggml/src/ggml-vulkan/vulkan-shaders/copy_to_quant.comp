@@ -90,6 +90,40 @@ void quantize(uint dst_idx, uint src_idx)
 }
 #endif
 
+#if defined(DATA_A_Q4_HQQ)
+// Store the same affine mapping in the. HQQ block fields (scale=d, zero=m) and 
+// specialize FA as Q4_1. Same 20-byte layout; GPU KV is Q4_1-encoded, CPU HQQ 
+// dequant of these blocks would differ.
+void quantize(uint dst_idx, uint src_idx)
+{
+    float vmin = 1.0/0.0;
+    float vmax = -vmin;
+
+    [[unroll]] for (int j = 0; j < QUANT_K_Q4_HQQ; ++j) {
+        const float v = float(data_s[src_idx + j]);
+
+        if (v < vmin) vmin = v;
+        if (v > vmax) vmax = v;
+    }
+
+    const float d  = (vmax - vmin) / 15.0;
+    const float id = (d != 0.0) ? 1.0/d : 0.0;
+
+    data_q[dst_idx].scale = float16_t(d);
+    data_q[dst_idx].zero  = float16_t(vmin);
+
+    [[unroll]] for (int j = 0; j < QUANT_K_Q4_HQQ/2; ++j) {
+        const float x0 = (float(data_s[src_idx + 0               + j]) - vmin)*id;
+        const float x1 = (float(data_s[src_idx + QUANT_K_Q4_HQQ/2 + j]) - vmin)*id;
+
+        const uint xi0 = min(15, int(x0 + 0.5));
+        const uint xi1 = min(15, int(x1 + 0.5));
+
+        data_q[dst_idx].qs[j] = uint8_t(xi0 | (xi1 << 4));
+    }
+}
+#endif
+
 #if defined(DATA_A_Q5_0)
 void quantize(uint dst_idx, uint src_idx)
 {

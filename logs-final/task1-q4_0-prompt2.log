@@ -1,0 +1,52 @@
+0.00.054.209 I llama_completion: llama backend init
+0.00.054.245 I llama_completion: load the model and apply lora adapter, if any
+0.02.557.216 I llama_completion: llama threadpool init, n_threads = 4
+0.02.557.265 I 
+0.02.557.336 I system_info: n_threads = 4 (n_threads_batch = 4) / 8 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+0.02.557.351 I 
+0.02.557.423 I sampler seed: 497876099
+0.02.557.460 I sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 40, top_p = 0.900, min_p = 0.050, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.600
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+0.02.557.470 I sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> dist 
+0.02.557.471 I generate: n_ctx = 4096, n_batch = 2048, n_predict = 128, n_keep = 1
+0.02.557.473 I 
+Write a Python function to reverse a list. Here’s a Python function to reverse a list:
+def reverse_list(lst):
+    return lst[::-1]
+A list is an ordered collection of objects. The objects may be any Python type. A list is created using square brackets. A list can be empty or have any number of elements. The list is a sequence, which is an ordered collection of objects. The objects may be any Python type.
+The list is created by enclosing a comma-separated list of values in square brackets. The list can be empty or have any number of elements. The list is a sequence, which is an ordered collection of objects. The objects may be any Python
+
+0.12.299.574 I common_perf_print:    sampling time =      38.05 ms
+0.12.300.225 I common_perf_print:    samplers time =      11.29 ms /   138 tokens
+0.12.300.261 I common_perf_print:        load time =    2021.71 ms
+0.12.300.263 I common_perf_print: prompt eval time =     290.62 ms /    10 tokens (   29.06 ms per token,    34.41 tokens per second)
+0.12.300.265 I common_perf_print:        eval time =    8288.93 ms /   127 runs   (   65.27 ms per token,    15.32 tokens per second)
+0.12.300.265 I common_perf_print:       total time =    8628.13 ms /   137 tokens
+0.12.300.267 I common_perf_print: unaccounted time =      10.53 ms /   0.1 %      (total - sampling - prompt eval - eval) / (total)
+0.12.300.267 I common_perf_print:    graphs reused =        126
+	Command being timed: "./build/bin/llama-completion -m ../Llama-3.2-3B/llama-3.2-3b-q4_0.gguf -p Write a Python function to reverse a list. -n 128 -c 4096 -t 4 --perf --simple-io"
+	User time (seconds): 37.61
+	System time (seconds): 1.37
+	Percent of CPU this job got: 313%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:12.44
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4046504
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 534900
+	Voluntary context switches: 196
+	Involuntary context switches: 251
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

@@ -1,0 +1,52 @@
+0.00.046.174 I llama_completion: llama backend init
+0.00.046.207 I llama_completion: load the model and apply lora adapter, if any
+0.01.321.274 I llama_completion: llama threadpool init, n_threads = 4
+0.01.321.314 I 
+0.01.321.419 I system_info: n_threads = 4 (n_threads_batch = 4) / 8 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+0.01.321.434 I 
+0.01.321.508 I sampler seed: 513753885
+0.01.321.519 I sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 40, top_p = 0.900, min_p = 0.050, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.600
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+0.01.321.526 I sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> dist 
+0.01.321.526 I generate: n_ctx = 4096, n_batch = 2048, n_predict = 128, n_keep = 1
+0.01.321.527 I 
+What is bitcoin? How does it work?
+Bitcoin is a digital currency. It is a peer-to-peer payment network that is powered by its users with no central authority or banks.
+Bitcoin uses cryptography to control the creation of bitcoins, to prove the ownership of bitcoins, and to control the transfer of bitcoins.
+Bitcoin is created by a process called mining. Bitcoin miners solve complex math problems to be the first to create a block. A block is a group of transactions. Miners also secure the network and process transactions by running a copy of the bitcoin software and keeping the network synchronized.
+When a bitcoin miner solves a block, they receive a reward in bitcoins. The
+
+0.23.179.273 I common_perf_print:    sampling time =      36.87 ms
+0.23.179.274 I common_perf_print:    samplers time =      10.42 ms /   133 tokens
+0.23.179.278 I common_perf_print:        load time =     671.25 ms
+0.23.179.279 I common_perf_print: prompt eval time =     169.82 ms /     5 tokens (   33.96 ms per token,    29.44 tokens per second)
+0.23.179.280 I common_perf_print:        eval time =   20421.32 ms /   127 runs   (  160.80 ms per token,     6.22 tokens per second)
+0.23.179.280 I common_perf_print:       total time =   20636.63 ms /   132 tokens
+0.23.179.281 I common_perf_print: unaccounted time =       8.63 ms /   0.0 %      (total - sampling - prompt eval - eval) / (total)
+0.23.179.281 I common_perf_print:    graphs reused =        126
+	Command being timed: "./build/bin/llama-completion -m ../Llama-3.2-3B/llama-3.2-3b-f16.gguf -p What is bitcoin? -n 128 -c 4096 -t 4 --perf --simple-io"
+	User time (seconds): 87.68
+	System time (seconds): 0.44
+	Percent of CPU this job got: 378%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:23.26
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 6922400
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 149728
+	Voluntary context switches: 176
+	Involuntary context switches: 350
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

@@ -1329,6 +1329,7 @@ int ggml_metal_op_lightning_indexer(ggml_metal_op_t ctx, int idx) {
                 k->type == GGML_TYPE_BF16 ||
                 k->type == GGML_TYPE_Q4_0 ||
                 k->type == GGML_TYPE_Q4_1 ||
+                k->type == GGML_TYPE_Q4_HQQ ||
                 k->type == GGML_TYPE_Q5_0 ||
                 k->type == GGML_TYPE_Q5_1 ||
                 k->type == GGML_TYPE_Q8_0);
@@ -2343,6 +2344,7 @@ int ggml_metal_op_mul_mat(ggml_metal_op_t ctx, int idx) {
            op->src[0]->type == GGML_TYPE_Q2_0 ||
            op->src[0]->type == GGML_TYPE_Q4_0 ||
            op->src[0]->type == GGML_TYPE_Q4_1 ||
+           op->src[0]->type == GGML_TYPE_Q4_HQQ ||
            op->src[0]->type == GGML_TYPE_Q5_0 ||
            op->src[0]->type == GGML_TYPE_Q5_1 ||
            op->src[0]->type == GGML_TYPE_Q8_0 ||

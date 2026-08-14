@@ -155,16 +155,18 @@ Settings: `llama-3.2-3b-q4_0.gguf`, `-c 4096`, `-n 128`, `-t 4`. Both: `File sys
 | Prefill | 136 ms | 141 ms | Unaffected at this prompt length |
 | Output quality | Coherent Bitcoin article | Coherent, same topic | Same seed/greedy decode **diverges from the first tokens**; no garbage - [A2.2](#a22-task-2b---kv-cache) |
 
-### 2c. GPU kernels (Vulkan)
+### 2c. GPU kernels (Vulkan + Metal)
 
-Q4_HQQ matmul/dequant on Vulkan. Native Windows, GTX 1650 (`Vulkan1`). Metal/OpenCL not implemented (assignment allows one GPU backend). Details and KV caveat: [A2.3](#a23-task-2c---vulkan).
+Q4_HQQ matmul/dequant on GPU. Vulkan on Windows (GTX 1650) and Metal on macOS (Apple M4). OpenCL was not added. Details: [A2.3](#a23-task-2c---vulkan), [A2.4](#a24-task-2c---metal).
 
-Proof logs (`-lv 4`): `file type = Q4_HQQ`, `using device Vulkan1 (NVIDIA GeForce GTX 1650)`, `offloaded 29/29 layers to GPU`.
+Proof (`-lv 4`): `file type = Q4_HQQ`, `offloaded 29/29 layers to GPU`, plus `Vulkan1 (NVIDIA GeForce GTX 1650)` or `MTL0 (Apple M4)`.
 
-#### Results
+CPU row in the speed tables is Task 2a prompt 1 (same GGUF). GPU hosts differ, so Vulkan vs Metal is not a head-to-head.
+
+#### Vulkan (GTX 1650)
 
 Logs: `logs-final/task2-q4hqq-vulkan-prompt1.log`, `logs-final/task2-q4hqq-vulkan-kv-prompt1.log`  
-Settings: `llama-3.2-3b-q4hqq.gguf`, `-ngl 99 --device Vulkan1 --fit off`, `-c 4096`, `-n 64`, `-s 42 --temp 0`. CPU row is Task 2a prompt 1 (same model).
+Settings: `llama-3.2-3b-q4hqq.gguf`, `-ngl 99 --device Vulkan1 --fit off`, `-c 4096`, `-n 64`, `-s 42 --temp 0`.
 
 ##### Weights on GPU vs CPU (f16 KV)
 
@@ -183,15 +185,39 @@ Settings: `llama-3.2-3b-q4hqq.gguf`, `-ngl 99 --device Vulkan1 --fit off`, `-c 4
 | KV buffer | 448 MiB (f16) | **140 MiB** (q4_hqq) | **−308 MiB (−69%)** |
 | GPU self (model+KV+compute) | 2715 MiB | 2407 MiB | −308 MiB |
 
+#### Metal (Apple M4)
+
+Logs: `logs-final/task2-q4hqq-metal-prompt1.log`, `logs-final/task2-q4hqq-metal-kv-prompt1.log`  
+Settings: same GGUF, `-ngl 99`, `-c 4096`, `-n 64`, default sampler (`temp = 0.6`, no fixed seed). Built-in empty warmup; reported runs are after the model was already in page cache.
+
+##### Weights on GPU vs CPU (f16 KV)
+
+| Metric | CPU Q4_HQQ (2a) | Metal Q4_HQQ | Metal vs CPU |
+| --- | --- | --- | --- |
+| First token latency | 501.81 ms | 72.70 ms | **6.9× faster** |
+| Avg generation speed | 7.58 tok/s | 44.31 tok/s | **5.8× faster** |
+| Device | CPU, 4 threads | MTL0 Apple M4, 29/29 layers | — |
+
+##### Metal KV: f16 vs `q4_hqq`
+
+| Metric | F16 KV | Q4_HQQ KV | Change |
+| --- | --- | --- | --- |
+| First token latency | 72.70 ms | 73.30 ms | ~same |
+| Avg generation speed | 44.31 tok/s | 42.86 tok/s | −3% |
+| KV buffer | 448 MiB (f16) | **140 MiB** (q4_hqq) | **−308 MiB (−69%)** |
+| GPU self (model+KV+compute) | 2699 MiB | 2385 MiB | −314 MiB |
+
 #### Task 2c - conclusions
 
 | Aspect | Takeaway |
 | --- | --- |
-| Weights | Canonical HQQ dequant on GPU (`w = (q − zero) / scale`). Full offload on GTX 1650 |
-| Decode / prefill | **~3.8× / ~6×** vs CPU Q4_HQQ on this card |
-| KV flag | `--cache-type-k/v q4_hqq` runs and shrinks KV 448 → 140 MiB; greedy text matches f16 KV on this prompt |
-| KV encoding | GPU KV is **Q4_1 laid into Q4_HQQ-typed blocks**, not CPU-canonical HQQ headers. FA treats the type as `Q4_1` - [A2.3](#a23-task-2c---vulkan) |
-| Quality | Coherent Bitcoin paragraph; no `???` / crash |
+| Weights | Canonical HQQ dequant on both backends (`w = (q − zero) / scale`). Full offload, 29/29 layers |
+| Vulkan decode / prefill | **~3.8× / ~6×** vs CPU Q4_HQQ on GTX 1650 |
+| Metal decode / prefill | **~5.8× / ~6.9×** vs CPU Q4_HQQ on M4 (different machine; not vs Vulkan) |
+| KV flag | `--cache-type-k/v q4_hqq` on both GPUs: 448 → **140 MiB** (−69%) |
+| Vulkan KV encoding | **Q4_1 parameters in Q4_HQQ-typed blocks**; FA maps the type to `Q4_1` - [A2.3](#a23-task-2c---vulkan) |
+| Metal KV encoding | **CPU-canonical** `scale` / `zero`; FA uses `dequantize_q4_hqq` - [A2.4](#a24-task-2c---metal) |
+| Quality | Coherent Bitcoin text on both GPUs; no `???` / crash |
 
 ---
 
@@ -242,14 +268,14 @@ All three answers: *"An article about a powder-coated surface."*
 
 ## A0. Environment
 
-| Item | CPU (Tasks 1, 2a, 2b) | GPU (Tasks 2c, 3) |
-| --- | --- | --- |
-| OS | Linux 6.18, x86_64 | Native Windows |
-| RAM / VRAM | 15 GiB | GTX 1650, 4152 MiB (`Vulkan1`) |
-| Threads | 4 (`-t 4`, 8 logical cores) | same host CPU; compute on GPU |
-| ISA | AVX2, AVX512, AVX512_VNNI (`REPACK = 1`) | — |
-| llama.cpp commit | `112e9ca` | same tree, MSVC Release |
-| Build | `cmake -B build -DGGML_NATIVE=ON` | `cmake -B build -G "Visual Studio 17 2022" -A x64 -DGGML_VULKAN=ON` |
+| Item | CPU (Tasks 1, 2a, 2b) | Vulkan (Task 2c, 3) | Metal (Task 2c) |
+| --- | --- | --- | --- |
+| OS | Linux 6.18, x86_64 | Native Windows | macOS, Apple M4 |
+| RAM / VRAM | 15 GiB | GTX 1650, 4152 MiB (`Vulkan1`) | unified 12 GiB (`MTL0`) |
+| Threads | 4 (`-t 4`, 8 logical cores) | host CPU; compute on GPU | 4 (`-t 4`, 10 logical) |
+| ISA / GPU | AVX2, AVX512, AVX512_VNNI (`REPACK = 1`) | — | NEON, DOTPROD, SME (`MTL : EMBED_LIBRARY = 1`) |
+| llama.cpp commit | `112e9ca` | same tree, MSVC Release | same tree, Apple clang |
+| Build | `cmake -B build -DGGML_NATIVE=ON` | `cmake -B build -G "Visual Studio 17 2022" -A x64 -DGGML_VULKAN=ON` | `cmake -B build -DGGML_METAL=ON` |
 
 ---
 
@@ -419,7 +445,7 @@ Both outputs stay on-topic, article-style Bitcoin text. They are not bit-identic
 
 ### A2.3. Task 2c - Vulkan
 
-Task 2c was built and run on native Windows against `Vulkan1` (GTX 1650). Metal and OpenCL were skipped; the assignment asks for Vulkan, Metal, *or* OpenCL.
+Vulkan was built and run on native Windows against `Vulkan1` (GTX 1650). Metal is [A2.4](#a24-task-2c---metal). OpenCL was not added.
 
 Weight kernels dequantize with the canonical HQQ map (`d = 1/scale`, `m = −zero/scale`, i.e. `w = (q − zero) / scale`): `dequant_q4_hqq.comp`, `dequant_funcs.glsl`, plus mul_mat / mul_mat_vec pipelines in `ggml-vulkan.cpp`.
 
@@ -451,7 +477,36 @@ Both logs show `file type = Q4_HQQ`, `196` `q4_hqq` tensors, `Vulkan1 model buff
 
 The GPU KV path is not CPU-canonical HQQ. `copy_to_quant.comp` writes Q4_1 parameters into the HQQ fields (`scale = d = (max−min)/15`, `zero = min`). Flash attention then specializes `GGML_TYPE_Q4_HQQ` as `FA_TYPE_Q4_1`. Same 20-byte block layout, so the type name and buffer size match; a CPU HQQ dequant of those GPU KV blocks would not. Weight tensors still use real HQQ. An earlier FA path that dequantized KV with `(q − zero) / scale` produced `???` tokens until this remap.
 
-A full HQQ KV shader (write and FA read with `scale`/`zero` as on CPU) is the remaining gap.
+A full HQQ KV shader (write and FA read with `scale`/`zero` as on CPU) is the remaining Vulkan gap. Metal already uses that mapping.
+
+### A2.4. Task 2c - Metal
+
+Metal clones the Q4_1 kernel set (`mul_mv` / `mul_mm` / `cpy` / `get_rows` / `set_rows` / flash attention / lightning indexer) with HQQ parameters. Quantize matches CPU: `scale = 15/(max−min)`, `zero = −min·scale`, `q = clamp(round(w·scale+zero), 0, 15)`. Dequant is `w = (q − zero) / scale`, expressed as Q4_1-style `d = 1/scale`, `m = −zero/scale` so the existing nibble unpack works. Host wiring: `N_R0_Q4_HQQ` / `N_SG_Q4_HQQ` in `ggml-metal-device.cpp`, `supports_op` in `ggml-metal-device.m`.
+
+```bash
+cd llama.cpp
+cmake -B build -DGGML_METAL=ON
+cmake --build build --config Release --target llama-completion -j$(sysctl -n hw.ncpu)
+
+# Weights, f16 KV
+./build/bin/llama-completion \
+  -m ../Llama-3.2-3B/llama-3.2-3b-q4hqq.gguf \
+  -p "What is bitcoin?" -n 64 -c 4096 -ngl 99 --perf -lv 4 \
+  2>&1 | tee ../logs-final/task2-q4hqq-metal-prompt1.log
+
+# Weights + KV typed q4_hqq
+./build/bin/llama-completion \
+  -m ../Llama-3.2-3B/llama-3.2-3b-q4hqq.gguf \
+  -p "What is bitcoin?" -n 64 -c 4096 -ngl 99 \
+  --cache-type-k q4_hqq --cache-type-v q4_hqq --perf -lv 4 \
+  2>&1 | tee ../logs-final/task2-q4hqq-metal-kv-prompt1.log
+```
+
+Same `-n 64` as Vulkan. Sampler is the CLI default (`temp = 0.6`), not greedy, so Metal f16-KV and q4_hqq-KV texts are not compared token-by-token. Both stay coherent Bitcoin explanations.
+
+Both logs show `file type = Q4_HQQ`, `196` `q4_hqq` tensors, `MTL0_Mapped model buffer size = 1988.90 MiB`, `offloaded 29/29 layers to GPU`, and `MTL : EMBED_LIBRARY = 1`.
+
+Unlike Vulkan, Metal KV write/read uses the same `scale`/`zero` as CPU. Quantized V forces flash attention (`enabling flash_attn since it is required for quantized V cache`); the FA templates instantiate `block_q4_hqq` + `dequantize_q4_hqq`. Output stays coherent (no `???`). KV size matches the 5/16 formula: 448 → 140 MiB.
 
 ---
 

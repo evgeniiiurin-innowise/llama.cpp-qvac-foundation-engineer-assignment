@@ -2,7 +2,7 @@
 
 Llama 3.2 3B in llama.cpp: Q4_0 baseline, new `Q4_HQQ` format (CPU + Vulkan + Metal), quantized KV cache, and `--mmproj-backend`.
 
-Metrics and analysis: [`REPORT.md`](REPORT.md). Logs: [`logs-final/`](logs-final/).
+Metrics and analysis: [`REPORT.md`](REPORT.md). Logs: [`logs-final/`](logs-final/). Code diff (Tasks 2–3): [`task2-task3-llama.cpp.patch`](task2-task3-llama.cpp.patch).
 
 ---
 
@@ -32,6 +32,7 @@ Metrics and analysis: [`REPORT.md`](REPORT.md). Logs: [`logs-final/`](logs-final
 - AVX512/VNNI `vec_dot` and a Q4_HQQ CPU repack kernel.
 - Vulkan KV write/read with CPU-canonical `scale` / `zero` (Metal already does this).
 - Allow `CPU` in `--mmproj-backend` without `--no-mmproj-offload`.
+- Add `Q4_HQQ` to `test-backend-ops` (`all_types` / `base_types`) so quantize, dequant, and `mul_mat` get automated CPU/GPU checks.
 - Perplexity (or a broader eval) for Q4_HQQ vs Q4_0; the quality notes here are single-prompt.
 
 ---
@@ -89,7 +90,25 @@ Copy `Llama-3.2-3B/llama-3.2-3b-q4hqq.gguf` onto the Mac; no HF re-download.
 
 # Models
 
-## Llama 3.2 3B
+## Prebuilt GGUFs (Google Drive)
+
+Upload / download these files (not the HF `safetensors` tree):
+
+| File | Size | Needed for |
+| --- | --- | --- |
+| `llama-3.2-3b-f16.gguf` | 6.0 GB | Task 1 baseline |
+| `llama-3.2-3b-q4_0.gguf` | 1.8 GB | Task 1, Task 2b |
+| `llama-3.2-3b-q4hqq.gguf` | 2.0 GB | Task 2a, Task 2c |
+| `SmolVLM-256M-Instruct-Q8_0.gguf` | 167 MB | Task 3 (optional; also on HF) |
+| `mmproj-SmolVLM-256M-Instruct-Q8_0.gguf` | 99 MB | Task 3 (optional; also on HF) |
+
+**Drive folder:** [evgenii-iurin-qvac-foundation-engineer-assignment](https://drive.google.com/drive/folders/1irYc_CvJmj4HPseiXWu6x_CtKEtc0c4F?usp=sharing)
+
+Place Llama GGUFs under `Llama-3.2-3B/` and SmolVLM under `SmolVLM-256M/`. The Q4_HQQ file is the one that needs this tree (or the patch) to produce; the others can be rebuilt with stock `llama-quantize` / HF download.
+
+Do **not** upload the gated HF checkpoint (`*.safetensors`, tokenizer, etc.): reviewers with Llama access can still run the convert path below.
+
+## Llama 3.2 3B (build from Hugging Face)
 
 Gated on Hugging Face: request access to `meta-llama/Llama-3.2-3B`, then `huggingface-cli login`.
 

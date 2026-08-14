@@ -4,8 +4,6 @@ Llama 3.2 3B in llama.cpp: Q4_0 baseline, new `Q4_HQQ` format (CPU + Vulkan + Me
 
 Metrics and analysis: [`REPORT.md`](REPORT.md). Logs: [`logs-final/`](logs-final/).
 
-Commands below are from the repo root unless a `cd` is shown.
-
 ---
 
 # Summary
@@ -27,7 +25,7 @@ Commands below are from the repo root unless a `cd` is shown.
 - The first CPU `vec_dot` was scalar (~2.3 tok/s). AVX2 recovered most of the gap; Q4_0 still leads via AVX512/VNNI and repack.
 - Canonical HQQ dequant on the Vulkan flash-attention KV path produced garbage tokens (`???`). Writing Q4_1 `(d, m)` into the HQQ fields and mapping FA to `Q4_1` restored coherent output. CPU and Metal KV stay real HQQ.
 - `--mmproj-backend CPU` is rejected by `parse_device_list`; CPU projector is `--no-mmproj-offload`.
-- Default log verbosity (`-lv 3`) drops llama/CLIP INFO. Proof of GPU offload and CLIP device needs `-lv 4` and `--log-file` (PowerShell `Tee-Object` wraps stderr as `NativeCommandError`).
+
 
 ## Further work
 
@@ -40,18 +38,8 @@ Commands below are from the repo root unless a `cd` is shown.
 
 # Setup
 
-## Layout
 
-```text
-.
-├── llama.cpp/                 # patched tree
-├── Llama-3.2-3B/              # HF weights + GGUF outputs
-├── SmolVLM-256M/              # Task 3 GGUFs
-├── logs-final/                # reported logs
-└── REPORT.md
-```
-
-## Linux (CPU: Tasks 1, 2a, 2b)
+## Linux
 
 Needs: CMake, a C/C++ compiler, Python 3.12, Hugging Face access to gated Llama 3.2 3B.
 
@@ -68,7 +56,7 @@ cd ..
 
 Binaries: `llama.cpp/build/bin/llama-completion`, `llama-quantize`, `llama-bench`.
 
-## Windows (Vulkan: Tasks 2c, 3)
+## Windows
 
 Needs: Visual Studio 2022 (Desktop C++), CMake, [Vulkan SDK](https://vulkan.lunarg.com/). Copy this `llama.cpp` tree and the GGUF files onto the Windows machine.
 
@@ -101,7 +89,7 @@ Copy `Llama-3.2-3B/llama-3.2-3b-q4hqq.gguf` onto the Mac; no HF re-download.
 
 # Models
 
-## Llama 3.2 3B (Tasks 1–2)
+## Llama 3.2 3B
 
 Gated on Hugging Face: request access to `meta-llama/Llama-3.2-3B`, then `huggingface-cli login`.
 
@@ -124,14 +112,6 @@ python llama.cpp/convert_hf_to_gguf.py Llama-3.2-3B \
   Llama-3.2-3B/llama-3.2-3b-q4hqq.gguf \
   Q4_HQQ
 ```
-
-| File | Size | Use |
-| --- | --- | --- |
-| `llama-3.2-3b-f16.gguf` | 6.0 GB | Task 1 baseline |
-| `llama-3.2-3b-q4_0.gguf` | 1.8 GB | Task 1, Task 2b (weights) |
-| `llama-3.2-3b-q4hqq.gguf` | 2.0 GB | Task 2a, Task 2c |
-
-If these GGUFs already exist, skip convert/quantize.
 
 ## SmolVLM-256M (Task 3)
 
@@ -276,16 +256,3 @@ $img    = "C:\Users\user\work\SmolVLM-256M\test-1-positive.png"
 Other two runs: `--mmproj-backend Vulkan1`, and `--no-mmproj-offload` (drop `--mmproj-backend`).
 
 Expect LLM always on `Vulkan1`; CLIP line and encode time follow the projector device.
-
----
-
-# Logs
-
-| File | What |
-| --- | --- |
-| `logs-final/task1-*-prompt*.log`, `task1-*-bench.md` | Task 1 CPU |
-| `logs-final/task2-q4hqq-prompt*.log`, `task2-q4hqq-bench.md` | Task 2a CPU |
-| `logs-final/task2-kv-f16-prompt1.log`, `task2-kv-q4hqq-prompt1.log` | Task 2b CPU KV |
-| `logs-final/task2-q4hqq-vulkan-prompt1.log`, `…-vulkan-kv-prompt1.log` | Task 2c Vulkan |
-| `logs-final/task2-q4hqq-metal-prompt1.log`, `…-metal-kv-prompt1.log` | Task 2c Metal |
-| `logs-final/task3-llm-vulkan1-clip-*.log` | Task 3 |

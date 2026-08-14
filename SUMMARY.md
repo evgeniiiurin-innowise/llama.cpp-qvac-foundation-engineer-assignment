@@ -1,6 +1,6 @@
 # Short Summary
 
-Llama 3.2 3B in llama.cpp: Q4_0 baseline, new `Q4_HQQ` format (CPU + Vulkan), quantized KV cache, and `--mmproj-backend`. Full metrics and logs: `REPORT.md`, `logs-final/`.
+Llama 3.2 3B in llama.cpp: Q4_0 baseline, new `Q4_HQQ` format (CPU + Vulkan + Metal), quantized KV cache, and `--mmproj-backend`. Full metrics and logs: `REPORT.md`, `logs-final/`.
 
 ## Modifications
 
@@ -10,20 +10,20 @@ Llama 3.2 3B in llama.cpp: Q4_0 baseline, new `Q4_HQQ` format (CPU + Vulkan), qu
 
 **Task 2b.** Registered `Q4_HQQ` for `--cache-type-k/v`. Same Q4_0 weights: KV at `-c 4096` shrinks by 308 MB (−8% RSS). Decode −13%. Greedy text with a fixed seed diverges from f16 KV but stays on topic.
 
-**Task 2c.** Vulkan weight kernels use canonical HQQ dequant (`w = (q − zero) / scale`). On a GTX 1650, 29/29 layers offload; decode is 3.8× the CPU Q4_HQQ figure. `--cache-type-k/v q4_hqq` runs and cuts the KV buffer 448 → 140 MiB. GPU KV is Q4_1 parameters stored in Q4_HQQ-typed blocks; flash attention specializes the type as `Q4_1`. Metal/OpenCL were not added.
+**Task 2c.** Weight kernels use canonical HQQ dequant (`w = (q − zero) / scale`) on Vulkan and Metal. GTX 1650: 29/29 layers, decode 3.8× CPU Q4_HQQ. Apple M4: 29/29 layers, decode 5.8× CPU (different machine). `--cache-type-k/v q4_hqq` cuts KV 448 → 140 MiB on both. Vulkan KV stores Q4_1 `(d, m)` in HQQ-typed blocks; Metal KV uses CPU-canonical `scale` / `zero`.
 
 **Task 3.** `--mmproj-backend DEVICE` selects the CLIP/mmproj ggml device only. `params.devices` / `--device` are unchanged. On SmolVLM-256M, the LLM stays on `Vulkan1` while CLIP is `Vulkan0`, `Vulkan1`, or CPU (`--no-mmproj-offload`). Encode time follows the CLIP device; the caption is the same in all three logs.
 
 ## Issues
 
 - The first CPU `vec_dot` was scalar (~2.3 tok/s). AVX2 recovered most of the gap; Q4_0 still leads via AVX512/VNNI and repack.
-- Canonical HQQ dequant on the Vulkan flash-attention KV path produced garbage tokens (`???`). Writing Q4_1 `(d, m)` into the HQQ fields and mapping FA to `Q4_1` restored coherent output. CPU KV remains real HQQ.
+- Canonical HQQ dequant on the Vulkan flash-attention KV path produced garbage tokens (`???`). Writing Q4_1 `(d, m)` into the HQQ fields and mapping FA to `Q4_1` restored coherent output. CPU and Metal KV stay real HQQ.
 - `--mmproj-backend CPU` is rejected by `parse_device_list`; CPU projector is `--no-mmproj-offload`.
 - Default log verbosity (`-lv 3`) drops llama/CLIP INFO. Proof of GPU offload and CLIP device needs `-lv 4` and `--log-file` (PowerShell `Tee-Object` wraps stderr as `NativeCommandError`).
 
 ## Further work
 
 - AVX512/VNNI `vec_dot` and a Q4_HQQ CPU repack kernel.
-- Vulkan KV write/read with CPU-canonical `scale` / `zero`, not the Q4_1 alias.
+- Vulkan KV write/read with CPU-canonical `scale` / `zero` (Metal already does this).
 - Allow `CPU` in `--mmproj-backend` without `--no-mmproj-offload`.
 - Perplexity (or a broader eval) for Q4_HQQ vs Q4_0; the quality notes here are single-prompt.
